@@ -3,7 +3,6 @@ import DraggableIcon from './components/dragableIcon';
 import Home from './components/home';
 
 const ContentScript = () => {
-  const [value, setValue] = useState(1);
   const [showPopup, setShowPopup] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -19,19 +18,15 @@ const ContentScript = () => {
     localStorage.setItem('avatarPosition', JSON.stringify(position));
   }, [position]);
 
-  const handleChange = (event: React.ChangeEvent<{}>, newValue: number) => {
-    setValue(newValue);
-  };
-
-  const handleOpen = (value: boolean) => {
+  const handleOpen = () => {
     if (!isDragging) {
-      setShowPopup(value);
+      setShowPopup(true);
     }
-    setIsDragging(false); // Reset dragging state after open attempt
+    setIsDragging(false);
   };
 
   const handleDrag = (event: any, ui: any) => {
-    setIsDragging(true); // Set dragging state to true during drag
+    setIsDragging(true);
     setPosition((prevPosition) => ({
       ...prevPosition,
       y: prevPosition.y + ui.deltaY,
@@ -43,16 +38,16 @@ const ContentScript = () => {
   };
 
   const handleScrape = () => {
-    // Placeholder scrape trigger - you can wire to domain-specific utilities as needed
     console.log('Scrape started');
   };
 
   return (
     <>
-      {!showPopup ? (
+      {!showPopup && (
         <DraggableIcon position={position} handleOpen={handleOpen} handleDrag={handleDrag} />
-      ) : (
-        <div className="procure-popup-container">
+      )}
+      {showPopup && (
+        <div className="extension-popup-container">
           <Home onClose={handleClose} onScrape={handleScrape} />
         </div>
       )}

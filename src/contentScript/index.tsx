@@ -1,9 +1,15 @@
 import React from 'react';
 import * as ReactDOM from 'react-dom/client';
 import ContentScript from './contentScript';
-import { extractRootDomain } from './utils';
-import { hideExtensionOnCaptcha } from '../utils/hideExtensionOnCaptcha';
+
 async function init() {
+  // Check if we're on Amazon
+  const isAmazon = window.location.hostname.includes('amazon.com');
+
+  if (!isAmazon) {
+    return; // Don't initialize extension on non-Amazon domains
+  }
+
   try {
     const response = await fetch(chrome.runtime.getURL('index.css'));
     if (!response.ok) {
@@ -11,14 +17,14 @@ async function init() {
     }
     const textContent = await response.text();
 
-    const existingElement = document.getElementById('procure-shadow-root');
+    const existingElement = document.getElementById('extension-shadow-root');
 
     if (existingElement) {
       existingElement.remove();
     }
 
     const container = document.createElement('div');
-    container.id = 'procure-shadow-root';
+    container.id = 'extension-shadow-root';
     document.body.insertBefore(container, document.body.firstChild);
 
     const shadowContainer = container.attachShadow({ mode: 'open' });
@@ -32,25 +38,10 @@ async function init() {
     shadowContainer.appendChild(emotionRoot);
     shadowContainer.appendChild(shadowRootElement);
 
-    
-
-    const hideExtensionVerification = [
-      {
-        domain: 'unbeatablesale',
-        className: '.zone-name-title',
-      },
-      {
-        domain: 'bestbuy',
-        className: '.country-selection',
-      }
-
-    ];
-    const captchaExists = hideExtensionVerification.some((hideExtension) => hideExtension.domain === extractRootDomain(document.URL))
-      ? hideExtensionOnCaptcha(hideExtensionVerification)
-      : null;
-
     ReactDOM.createRoot(shadowRootElement).render(
-      <React.StrictMode>{captchaExists ? null : <ContentScript />}</React.StrictMode>,
+      <React.StrictMode>
+        <ContentScript />
+      </React.StrictMode>,
     );
   } catch (error) {
     console.log('Failed to fetch and apply CSS:', error);

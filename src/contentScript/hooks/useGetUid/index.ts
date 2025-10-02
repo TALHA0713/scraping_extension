@@ -1,11 +1,5 @@
 import { useEffect, useState } from 'react';
-import { extractRootDomain } from '../../utils';
 import { extractAmazonUid } from '../../utils/amazon';
-import { extractWalmartUid } from '../../utils/walmart';
-import { extractBestbuyUid } from '../../utils/bestbuy';
-import { extractUnbeatablesaleUid } from '../../utils/unbeatablesale';
-import { extractHomeDepotUid } from '../../utils/homeDepot';
-import { extractBizChairUid } from '../../utils/bizChair';
 import { MerchantObject, MerchantType } from '../../types';
 
 const useGetUid = () => {
@@ -21,7 +15,7 @@ const useGetUid = () => {
     const handleUrlChange = () => {
       setUrl(document.URL);
     };
-    chrome.storage.local.get(['zipCode','emailId'], function (result) {
+    chrome.storage.local.get(['zipCode', 'emailId'], function (result) {
       if (result.zipCode) {
         setZipCode(result.zipCode);
       }
@@ -36,66 +30,11 @@ const useGetUid = () => {
   }, []);
 
   useEffect(() => {
-    const rootDomain = extractRootDomain(url);
-    switch (rootDomain) {
-      case 'amazon':
-        const setAmazonUid = async () => {
-          const amazonData = await extractAmazonUid(url);
-          setMerchantObject({ sku: amazonData.uid, merchant: MerchantType.amazon, ...amazonData });
-        };
-        setAmazonUid();
-        break;
-      case 'walmart':
-        const setWalmartUid = async () => {
-          const walmartData = await extractWalmartUid(url);
-          setMerchantObject({ sku: walmartData.uid, merchant: MerchantType.walmart, ...walmartData });
-        };
-        setWalmartUid();
-        break;
-
-      case 'bestbuy':
-        const setBestBuyUid = async () => {
-          const bestbuyData = await extractBestbuyUid(url);
-          setMerchantObject({ sku: bestbuyData.uid, merchant: MerchantType.bestbuy, ...bestbuyData });
-        };
-
-        setBestBuyUid();
-        break;
-
-      case 'unbeatablesale':
-        const setUnbeatablesaleUid = async () => {
-          const unbeatablesaleUid = await extractUnbeatablesaleUid(url);
-          setMerchantObject({
-            sku: unbeatablesaleUid.uid,
-            merchant: MerchantType.unbeatablesale,
-            ...unbeatablesaleUid,
-          });
-        };
-        setUnbeatablesaleUid();
-        break;
-      case 'homedepot':
-        const setHomeDepotUid = async () => {
-          const homeDepotUid = await extractHomeDepotUid(url);
-          setMerchantObject({
-            ...homeDepotUid, 
-            sku: homeDepotUid.sku || homeDepotUid.uid,
-            merchant: MerchantType.homeDepot,
-            upc:homeDepotUid.upc
-          });
-        };
-        setHomeDepotUid();
-        break;
-
-      case 'bizchair':
-        const setBizChairUid = async () => {
-          const bizChairUid = await extractBizChairUid(url);
-          setMerchantObject({ sku: bizChairUid.uid, merchant: MerchantType.bizchair, ...bizChairUid });
-        };
-        setBizChairUid();
-        break;
-      default:
-        console.log('Unknown Domain');
-    }
+    const setAmazonUid = async () => {
+      const amazonData = await extractAmazonUid(url);
+      setMerchantObject({ sku: amazonData.uid, merchant: MerchantType.amazon, ...amazonData });
+    };
+    setAmazonUid();
   }, [url]);
 
   useEffect(() => {

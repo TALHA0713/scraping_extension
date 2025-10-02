@@ -40,12 +40,16 @@
 }
 
 /* Center content of the in-page popup container */
-.procure-popup-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+.extension-popup-container {
+  position: fixed;
+  top: 5%;
+  right: 2px;
+  z-index: 99999;
+  background: #f1f1f1;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
   min-height: 360px;
+  min-width: 400px;
   padding: 16px;
 }
 

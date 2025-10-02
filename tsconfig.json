@@ -12,8 +12,7 @@
         "src/contentScript/contentScript.tsx",
         "src/contentScript/components/dragableIcon.tsx",
         "src/contentScript/components/home.tsx",
-        "src/popup/index.tsx",
-        "src/popup/popup.tsx"
+        "src/popup/index.tsx"
     ],
     "exclude": [
         "node_modules",

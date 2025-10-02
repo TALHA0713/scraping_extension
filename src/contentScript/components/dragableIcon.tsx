@@ -4,7 +4,7 @@ import Draggable from 'react-draggable';
 
 interface DragableIconProps {
   position: { x: number; y: number };
-  handleOpen: (value: boolean) => void;
+  handleOpen: () => void;
   handleDrag: (event: any, ui: any) => void;
 }
 
@@ -24,7 +24,7 @@ const DragableIcon = (props: DragableIconProps) => {
         nodeRef={draggableRef}
       >
         <div className="dragable" ref={draggableRef}>
-          <button id="icon_envelope" onClick={() => handleOpen(true)}>
+          <button id="icon_envelope" onClick={handleOpen}>
             <img src={iconSrc} onError={() => setIconSrc(defaultIcon)} className="avatar" height={'100%'} alt="Icon" />
             <div className="hover-icon">
               <MdOutlineOpenInFull />

@@ -74,27 +74,6 @@ export type MerchantObject = {
   img?: string;
 };
 
-export type HomeDepotProduct = {
-  uid: string;
-  sku?: string | null;
-  internet?: string | null;
-  model?: string | null;
-  category?: string | null;
-  title: string;
-  price?: string | null;
-  img: string;
-  product_information: string;
-  brand?: string | null;
-  headerTitle?: string | null;
-  prod_details?: string | null;
-  upc?: string[] | null;
-};
-
 export enum MerchantType {
   amazon = 'Amazon',
-  walmart = 'Walmart-Affiliate-Program',
-  bestbuy = 'Best-Buy-US',
-  unbeatablesale = 'UnbeatableSale',
-  homeDepot = 'The-Home-Depot',
-  bizchair = 'Bizchair',
 }

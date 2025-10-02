@@ -22,7 +22,7 @@ const messageHandler = {
         status: 'success',
         exactProducts: [],
         similarProducts: [],
-        message: 'Procure extension is open (mock mode).',
+        message: 'Browser extension is active (mock mode).',
       };
 
       sendResponse(mockResponse);
@@ -56,45 +56,3 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
-const urlPatterns = {
-  whitelist: ['*://www.walmart.com/ip/*'],
-  blacklist: ['*://www.walmart.com/search*', "*://www.walmart.com/",
-    '*://www.walmart.com/shop/*', '*://www.walmart.com/cp/*', '*://www.walmart.com/browse/*']
-};
-
-function injectScript(tabId: number) {
-  chrome.scripting.executeScript({
-    target: { tabId: tabId },
-    files: ['contentScript.js'],
-  });
-}
-function isUrlMatched(url: string, patterns: any) {
-  return patterns.some(pattern => {
-    const regexPattern = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/(^\w+:|^)\/\//, '($1)://') + '$');
-    return regexPattern.test(url);
-  });
-}
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.url) {
-    handleUrlChange(tabId, changeInfo.url);
-  }
-});
-
-function handleUrlChange(tabId, url) {
-  if (isUrlMatched(url, urlPatterns.whitelist)) {
-    injectScript(tabId);
-  } else if (isUrlMatched(url, urlPatterns.blacklist)) {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    removeContentScript(tabId)
-  })
-}}
-
-function removeContentScript(tabId){
-  chrome.tabs.sendMessage(tabId, { action: "removeContentScript" }, (response) => {
-    if (chrome.runtime.lastError) {
-      console.warn("Error sending message:", chrome.runtime.lastError.message);
-    } else {
-      console.log("Response from content script:", response);
-    }
-  });
-}

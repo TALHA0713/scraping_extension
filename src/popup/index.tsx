@@ -12,9 +12,9 @@ function init() {
     throw new Error('Can not find AppContainer');
   }
   const root = createRoot(appContainer);
-  const handleClose = () => window.close();
   const handleScrape = () => console.log('Scrape from popup');
-  root.render(<Home onClose={handleClose} onScrape={handleScrape} />);
+  const handleClose = () => window.close();
+  root.render(<Home onScrape={handleScrape} onClose={handleClose} />);
 }
 
 init();
