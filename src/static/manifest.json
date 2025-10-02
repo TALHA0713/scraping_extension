@@ -2,17 +2,12 @@
   "manifest_version": 3,
   "name": "scraping",
   "description": "browser extension",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "action": {
     "default_title": "Browser Extension",
     "default_icon": "icon.png"
   },
-  "permissions": [
-    "tabs",
-    "storage",
-    "activeTab",
-    "scripting"
-  ],
+  "permissions": ["tabs", "storage", "activeTab", "scripting"],
   "icons": {
     "16": "icon.png",
     "48": "icon.png",
@@ -23,28 +18,19 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://www.amazon.com/*"
-      ],
-      "js": [
-        "contentScript.js"
-      ],
+      "matches": ["*://www.amazon.com/*", "https://www.noon.com/uae-en/*"],
+      "js": ["contentScript.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": [
-        "icon.png",
-        "image-not-found.jpg",
-        "index.css"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["icon.png", "image-not-found.jpg", "index.css"],
+      "matches": ["<all_urls>"]
     }
   ],
   "host_permissions": [
-    "https://www.amazon.com/*"
+    "https://www.amazon.com/*",
+    "https://www.noon.com/uae-en/*"
   ]
 }

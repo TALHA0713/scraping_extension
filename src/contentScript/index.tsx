@@ -3,11 +3,12 @@ import * as ReactDOM from 'react-dom/client';
 import ContentScript from './contentScript';
 
 async function init() {
-  // Check if we're on Amazon
+  // Check if we're on a supported domain
   const isAmazon = window.location.hostname.includes('amazon.com');
+  const isNoon = window.location.hostname.includes('noon.com');
 
-  if (!isAmazon) {
-    return; // Don't initialize extension on non-Amazon domains
+  if (!isAmazon && !isNoon) {
+    return; // Don't initialize extension on non-supported domains
   }
 
   try {
