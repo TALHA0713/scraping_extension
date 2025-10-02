@@ -1,0 +1,29 @@
+ {
+     "compilerOptions": {
+         "jsx": "react",
+         "module": "es6",
+         "target": "es6",
+         "moduleResolution": "node",
+         "esModuleInterop": true,
+     },
+    "include": [
+        "src/background/background.ts",
+        "src/contentScript/index.tsx",
+        "src/contentScript/contentScript.tsx",
+        "src/contentScript/components/dragableIcon.tsx",
+        "src/contentScript/components/home.tsx",
+        "src/popup/index.tsx",
+        "src/popup/popup.tsx"
+    ],
+    "exclude": [
+        "node_modules",
+        "src/contentScript/components/add.tsx",
+        "src/contentScript/components/card.tsx",
+        "src/contentScript/components/comparison.tsx",
+        "src/contentScript/components/product.tsx",
+        "src/contentScript/components/save.tsx",
+        "src/contentScript/components/tabSwitch.tsx",
+        "src/contentScript/components/tabView.tsx",
+        "src/popup/signIn.tsx"
+    ],
+ }

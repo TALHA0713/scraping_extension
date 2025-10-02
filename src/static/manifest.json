@@ -1,0 +1,135 @@
+{
+  "manifest_version": 3,
+  "name": "Procure (Mock)",
+  "description": "Procure browser extension - mock (no backend calls)",
+  "version": "0.0.1",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Procure Browser Extension",
+    "default_icon": "icon.png"
+  },
+  "permissions": [
+    "tabs",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://www.amazon.com/*/dp/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.amazon.com/DP/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.amazon.com/gp/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.amazon.com/dp/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.walmart.com/ip/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.bestbuy.com/site/*/*.p*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.bizchair.com/products/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://unbeatablesale.com/*-*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.unbeatablesale.com/*-*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.homedepot.com/p/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    },
+    {
+      "matches": [
+        "*://www.homedepot.com/pep/*"
+      ],
+      "js": [
+        "contentScript.js"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icon.png",
+        "image-not-found.jpg",
+        "index.css"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "host_permissions": [
+    "https://www.amazon.com/*",
+    "https://www.walmart.com/*",
+    "https://www.bestbuy.com/*",
+    "https://www.bizchair.com/*",
+    "https://unbeatablesale.com/*",
+    "https://www.homedepot.com/*"
+  ]
+}
