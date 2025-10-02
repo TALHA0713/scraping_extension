@@ -55,4 +55,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     messageHandler.fetchData(msg, sendResponse);
     return true;
   }
+
+  // Handle product scraping messages
+  if (msg.type === 'PRODUCTS_EXTRACTED') {
+    console.log('Products extracted from content script:', msg.data);
+    // Store the products or send them to a server
+    // For now, just log them
+    return true;
+  }
+
+  if (msg.type === 'SCRAPE_REQUESTED') {
+    console.log('Scrape requested from content script:', msg.data);
+    // Handle manual scrape request
+    return true;
+  }
 });

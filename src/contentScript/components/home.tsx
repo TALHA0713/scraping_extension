@@ -8,6 +8,11 @@ type HomeProps = {
 const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
   const [email, setEmail] = useState<string>('');
   const [isScrapingEnabled, setIsScrapingEnabled] = useState<boolean>(false);
+  const [isOnSearchPage, setIsOnSearchPage] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [scrapingComplete, setScrapingComplete] = useState<boolean>(false);
+  const [scrapedCount, setScrapedCount] = useState<number>(0);
+  const [showResults, setShowResults] = useState<boolean>(false);
 
   useEffect(() => {
     chrome.storage.local.get(['emailId'], (result) => {
@@ -15,29 +20,105 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
         setEmail(result.emailId);
       }
     });
+
+    // Check if we're on a search results page
+    const onSearchPage = checkIfSearchPage();
+    setIsOnSearchPage(onSearchPage);
   }, []);
+
+  const checkIfSearchPage = (): boolean => {
+    const url = window.location.href;
+    const pathname = window.location.pathname;
+
+    // Check for Amazon search page
+    if (url.includes('amazon.com') && pathname.includes('/s')) {
+      return true;
+    }
+
+    // Check for Noon search page
+    if (url.includes('noon.com') && pathname.includes('/search')) {
+      return true;
+    }
+
+    // Check for IKEA search page
+    if (url.includes('ikea.com') && pathname.includes('/search')) {
+      return true;
+    }
+
+    return false;
+  };
 
   const handleToggleScraping = () => {
     setIsScrapingEnabled(!isScrapingEnabled);
+    setScrapingComplete(false);
   };
 
-  const handleStartScrape = () => {
-    onScrape();
+  const handleStartScrape = async () => {
+    setIsLoading(true);
+    setScrapingComplete(false);
+    setShowResults(false);
+
+    try {
+      // Call the scrape function
+      await onScrape();
+
+      // Get the count from productScraper
+      // @ts-ignore - accessing global productScraper
+      const count = window.productScraperCount || 0;
+      setScrapedCount(count);
+
+      // Show completion immediately
+      setIsLoading(false);
+      setScrapingComplete(true);
+      setShowResults(true);
+
+      // Hide completion message after 3 seconds but keep results
+      setTimeout(() => {
+        setScrapingComplete(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Scraping failed:', error);
+      setIsLoading(false);
+    }
   };
+
+  const handleClose = () => {
+    // Prevent closing while scraping is in progress
+    if (isLoading) {
+      return;
+    }
+
+    setScrapingComplete(false);
+    setShowResults(false);
+    onClose();
+  };
+
+
+  const canScrape = isScrapingEnabled && isOnSearchPage;
 
   return (
-    <div style={{
-      position: 'relative',
-      padding: '24px',
-      width: '100%',
-      minHeight: '300px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '24px'
-    }}>
+    <>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+      <div style={{
+        position: 'relative',
+        padding: '24px',
+        width: '100%',
+        minHeight: '300px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px'
+      }}>
       {/* Close button */}
       <button
-        onClick={onClose}
+        onClick={handleClose}
+        disabled={isLoading}
         style={{
           position: 'absolute',
           top: '12px',
@@ -45,11 +126,14 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
           background: 'transparent',
           border: 'none',
           fontSize: '24px',
-          cursor: 'pointer',
-          color: '#666',
+          cursor: isLoading ? 'not-allowed' : 'pointer',
+          color: isLoading ? '#d1d5db' : '#666',
           padding: '4px 8px',
-          lineHeight: '1'
+          lineHeight: '1',
+          zIndex: 10,
+          opacity: isLoading ? 0.5 : 1
         }}
+        title={isLoading ? 'Please wait, scraping in progress...' : 'Close'}
       >
         ×
       </button>
@@ -142,7 +226,7 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
               fontSize: '12px',
               color: '#6b7280'
             }}>
-              {isScrapingEnabled ? 'Active and ready' : 'Currently disabled'}
+              {isScrapingEnabled ? 'Scraping enabled' : 'Scraping disabled'}
             </div>
           </div>
           <button
@@ -174,6 +258,90 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
         </div>
       </div>
 
+      {/* Page Status Alert */}
+      {isScrapingEnabled && !isOnSearchPage && (
+        <div style={{
+          background: '#fef3c7',
+          border: '1px solid #fcd34d',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          fontSize: '13px',
+          color: '#92400e',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '16px' }}>⚠️</span>
+          <span>Please navigate to a search results page to start scraping</span>
+        </div>
+      )}
+
+      {/* Scraping Complete Message */}
+      {scrapingComplete && (
+        <div style={{
+          background: '#d1fae5',
+          border: '1px solid #6ee7b7',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          fontSize: '13px',
+          color: '#065f46',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '16px' }}>✓</span>
+          <span>Scraping completed! Found {scrapedCount} products</span>
+        </div>
+      )}
+
+      {/* Results Section */}
+      {showResults && scrapedCount > 0 && (
+        <div style={{
+          background: '#f9fafb',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          padding: '16px'
+        }}>
+          <div style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#1f2937',
+            marginBottom: '12px'
+          }}>
+            Scraping Results
+          </div>
+          <div style={{
+            fontSize: '24px',
+            fontWeight: '700',
+            color: '#FFB514',
+            marginBottom: '8px'
+          }}>
+            {scrapedCount}
+          </div>
+          <div style={{
+            fontSize: '12px',
+            color: '#6b7280',
+            marginBottom: '12px'
+          }}>
+            Product URLs exported to CSV
+          </div>
+          <div style={{
+            padding: '8px 12px',
+            background: '#d1fae5',
+            border: '1px solid #6ee7b7',
+            borderRadius: '6px',
+            fontSize: '12px',
+            color: '#065f46',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>📥</span>
+            <span>CSV file downloaded to your Downloads folder</span>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div style={{
         display: 'flex',
@@ -183,64 +351,85 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
       }}>
         <button
           onClick={handleStartScrape}
-          disabled={!isScrapingEnabled}
+          disabled={!canScrape || isLoading}
           style={{
             padding: '12px 24px',
-            background: isScrapingEnabled ? '#FFB514' : '#d1d5db',
+            background: canScrape && !isLoading ? '#FFB514' : '#d1d5db',
             color: '#fff',
             border: 'none',
             borderRadius: '8px',
             fontSize: '16px',
             fontWeight: '600',
-            cursor: isScrapingEnabled ? 'pointer' : 'not-allowed',
+            cursor: canScrape && !isLoading ? 'pointer' : 'not-allowed',
             transition: 'all 0.2s ease',
-            boxShadow: isScrapingEnabled ? '0 2px 4px rgba(255,181,20,0.2)' : 'none',
-            opacity: isScrapingEnabled ? 1 : 0.6
+            boxShadow: canScrape && !isLoading ? '0 2px 4px rgba(255,181,20,0.2)' : 'none',
+            opacity: canScrape && !isLoading ? 1 : 0.6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
           }}
           onMouseEnter={(e) => {
-            if (isScrapingEnabled) {
+            if (canScrape && !isLoading) {
               e.currentTarget.style.background = '#e5a312';
               e.currentTarget.style.transform = 'translateY(-1px)';
               e.currentTarget.style.boxShadow = '0 4px 8px rgba(255,181,20,0.3)';
             }
           }}
           onMouseLeave={(e) => {
-            if (isScrapingEnabled) {
+            if (canScrape && !isLoading) {
               e.currentTarget.style.background = '#FFB514';
               e.currentTarget.style.transform = 'translateY(0)';
               e.currentTarget.style.boxShadow = '0 2px 4px rgba(255,181,20,0.2)';
             }
           }}
         >
-          Start Scraping
+          {isLoading && (
+            <div style={{
+              width: '16px',
+              height: '16px',
+              border: '2px solid #fff',
+              borderTop: '2px solid transparent',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+          )}
+          {isLoading ? 'Scraping...' : 'Start Scraping'}
         </button>
 
         <button
-          onClick={onClose}
+          onClick={handleClose}
+          disabled={isLoading}
           style={{
             padding: '12px 24px',
             background: 'transparent',
-            color: '#6b7280',
+            color: isLoading ? '#d1d5db' : '#6b7280',
             border: '1px solid #e5e7eb',
             borderRadius: '8px',
             fontSize: '14px',
             fontWeight: '500',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s ease',
+            opacity: isLoading ? 0.5 : 1
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#f9fafb';
-            e.currentTarget.style.borderColor = '#d1d5db';
+            if (!isLoading) {
+              e.currentTarget.style.background = '#f9fafb';
+              e.currentTarget.style.borderColor = '#d1d5db';
+            }
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.borderColor = '#e5e7eb';
+            if (!isLoading) {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = '#e5e7eb';
+            }
           }}
         >
           Close
         </button>
       </div>
     </div>
+    </>
   );
 };
 

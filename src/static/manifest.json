@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "scraping",
   "description": "browser extension",
-  "version": "0.0.3",
+  "version": "0.0.6",
   "action": {
     "default_title": "Browser Extension",
     "default_icon": "icon.png"
@@ -18,9 +18,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://www.amazon.com/*", "https://www.noon.com/uae-en/*"],
+      "matches": [
+        "*://www.amazon.com/s*",
+        "*://www.noon.com/uae-en/*",
+        "*://www.ikea.com/*"
+      ],
       "js": ["contentScript.js"],
-      "run_at": "document_idle"
+      "run_at": "document_end"
     }
   ],
   "web_accessible_resources": [
@@ -31,6 +35,7 @@
   ],
   "host_permissions": [
     "https://www.amazon.com/*",
-    "https://www.noon.com/uae-en/*"
+    "https://www.noon.com/uae-en/*",
+    "https://www.ikea.com/*"
   ]
 }
