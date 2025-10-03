@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "scraping",
   "description": "browser extension",
-  "version": "0.0.6",
+  "version": "0.0.11",
   "action": {
     "default_title": "Browser Extension",
     "default_icon": "icon.png"
@@ -20,8 +20,7 @@
     {
       "matches": [
         "*://www.amazon.com/s*",
-        "*://www.noon.com/uae-en/*",
-        "*://www.ikea.com/*"
+        "*://www.noon.com/uae-en/search*"
       ],
       "js": ["contentScript.js"],
       "run_at": "document_end"
@@ -35,7 +34,8 @@
   ],
   "host_permissions": [
     "https://www.amazon.com/*",
-    "https://www.noon.com/uae-en/*",
-    "https://www.ikea.com/*"
+    "https://www.noon.com/*",
+    "https://api.ipify.org/*",
+    "http://localhost:4000/*"
   ]
 }

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Settings from './settings';
 
 type HomeProps = {
   onClose: () => void;
@@ -6,47 +7,42 @@ type HomeProps = {
 };
 
 const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
-  const [email, setEmail] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'home' | 'settings'>('home');
   const [isScrapingEnabled, setIsScrapingEnabled] = useState<boolean>(false);
-  const [isOnSearchPage, setIsOnSearchPage] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [scrapingComplete, setScrapingComplete] = useState<boolean>(false);
   const [scrapedCount, setScrapedCount] = useState<number>(0);
   const [showResults, setShowResults] = useState<boolean>(false);
+  const [csvUrl, setCsvUrl] = useState<string>('');
+
 
   useEffect(() => {
-    chrome.storage.local.get(['emailId'], (result) => {
-      if (result.emailId) {
-        setEmail(result.emailId);
+    // Listen for messages from background script
+    const messageListener = (message: any) => {
+      if (message.type === 'SCRAPE_COMPLETE') {
+        setCsvUrl(message.data.csvUrl);
+        setScrapedCount(message.data.count);
+        setIsLoading(false);
+        setScrapingComplete(true);
+        setShowResults(true);
+
+        // Hide completion message after 3 seconds
+        setTimeout(() => {
+          setScrapingComplete(false);
+        }, 3000);
+      } else if (message.type === 'SCRAPE_ERROR') {
+        console.error('Scraping error:', message.error);
+        setIsLoading(false);
+        alert('Error during scraping: ' + message.error);
       }
-    });
+    };
 
-    // Check if we're on a search results page
-    const onSearchPage = checkIfSearchPage();
-    setIsOnSearchPage(onSearchPage);
+    chrome.runtime.onMessage.addListener(messageListener);
+
+    return () => {
+      chrome.runtime.onMessage.removeListener(messageListener);
+    };
   }, []);
-
-  const checkIfSearchPage = (): boolean => {
-    const url = window.location.href;
-    const pathname = window.location.pathname;
-
-    // Check for Amazon search page
-    if (url.includes('amazon.com') && pathname.includes('/s')) {
-      return true;
-    }
-
-    // Check for Noon search page
-    if (url.includes('noon.com') && pathname.includes('/search')) {
-      return true;
-    }
-
-    // Check for IKEA search page
-    if (url.includes('ikea.com') && pathname.includes('/search')) {
-      return true;
-    }
-
-    return false;
-  };
 
   const handleToggleScraping = () => {
     setIsScrapingEnabled(!isScrapingEnabled);
@@ -57,28 +53,23 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
     setIsLoading(true);
     setScrapingComplete(false);
     setShowResults(false);
+    setCsvUrl('');
 
     try {
       // Call the scrape function
       await onScrape();
 
-      // Get the count from productScraper
-      // @ts-ignore - accessing global productScraper
-      const count = window.productScraperCount || 0;
-      setScrapedCount(count);
-
-      // Show completion immediately
-      setIsLoading(false);
-      setScrapingComplete(true);
-      setShowResults(true);
-
-      // Hide completion message after 3 seconds but keep results
-      setTimeout(() => {
-        setScrapingComplete(false);
-      }, 3000);
+      // Loading will be set to false when backend responds
     } catch (error) {
       console.error('Scraping failed:', error);
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    if (csvUrl) {
+      // Open the CSV URL in a new tab to download
+      window.open(csvUrl, '_blank');
     }
   };
 
@@ -94,7 +85,12 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
   };
 
 
-  const canScrape = isScrapingEnabled && isOnSearchPage;
+  const canScrape = isScrapingEnabled;
+
+  // If settings tab is active, show settings component
+  if (activeTab === 'settings') {
+    return <Settings onBack={() => setActiveTab('home')} />;
+  }
 
   return (
     <>
@@ -110,6 +106,7 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
         position: 'relative',
         padding: '24px',
         width: '100%',
+        maxWidth: '400px',
         minHeight: '300px',
         display: 'flex',
         flexDirection: 'column',
@@ -135,70 +132,61 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
         }}
         title={isLoading ? 'Please wait, scraping in progress...' : 'Close'}
       >
-        ×
+        
       </button>
 
-      {/* Header */}
-      <div style={{ textAlign: 'center' }}>
-        <h2 style={{
-          margin: '0 0 8px 0',
-          fontSize: '24px',
-          fontWeight: '600',
-          color: '#1f2937'
-        }}>
-          Scraping Dashboard
-        </h2>
-        <p style={{
-          margin: '0',
-          fontSize: '14px',
-          color: '#6b7280'
-        }}>
-          Manage your scraping preferences
-        </p>
-      </div>
-
-      {/* User Info Card */}
+      {/* Header with Settings Icon */}
       <div style={{
-        background: '#f9fafb',
-        border: '1px solid #e5e7eb',
-        borderRadius: '8px',
-        padding: '16px'
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingRight: '32px'
       }}>
-        <div style={{
-          fontSize: '12px',
-          fontWeight: '600',
-          color: '#6b7280',
-          marginBottom: '8px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px'
-        }}>
-          User Account
+        <div style={{ flex: 1, textAlign: 'center' }}>
+          <h2 style={{
+            margin: '0 0 8px 0',
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#1f2937'
+          }}>
+            Scraping Dashboard
+          </h2>
+          <p style={{
+            margin: '0',
+            fontSize: '14px',
+            color: '#6b7280'
+          }}>
+            Manage your scraping preferences
+          </p>
         </div>
-        <div style={{
-          fontSize: '16px',
-          color: '#1f2937',
-          fontWeight: '500',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <span style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: '#FFB514',
+        <button
+          onClick={() => setActiveTab('settings')}
+          style={{
+            background: '#f3f4f6',
+            border: '1px solid #d1d5db',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            fontSize: '18px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontSize: '14px',
-            fontWeight: '600'
-          }}>
-            {email ? email.charAt(0).toUpperCase() : 'U'}
-          </span>
-          {email || 'Not logged in'}
-        </div>
+            gap: '6px',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = '#e5e7eb';
+            e.currentTarget.style.borderColor = '#9ca3af';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = '#f3f4f6';
+            e.currentTarget.style.borderColor = '#d1d5db';
+          }}
+          title="Settings"
+        >
+          ⚙️
+        </button>
       </div>
+
 
       {/* Scraping Status Card */}
       <div style={{
@@ -258,23 +246,6 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
         </div>
       </div>
 
-      {/* Page Status Alert */}
-      {isScrapingEnabled && !isOnSearchPage && (
-        <div style={{
-          background: '#fef3c7',
-          border: '1px solid #fcd34d',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          fontSize: '13px',
-          color: '#92400e',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <span style={{ fontSize: '16px' }}>⚠️</span>
-          <span>Please navigate to a search results page to start scraping</span>
-        </div>
-      )}
 
       {/* Scraping Complete Message */}
       {scrapingComplete && (
@@ -323,22 +294,40 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
             color: '#6b7280',
             marginBottom: '12px'
           }}>
-            Product URLs exported to CSV
+            Products scraped successfully
           </div>
-          <div style={{
-            padding: '8px 12px',
-            background: '#d1fae5',
-            border: '1px solid #6ee7b7',
-            borderRadius: '6px',
-            fontSize: '12px',
-            color: '#065f46',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <span>📥</span>
-            <span>CSV file downloaded to your Downloads folder</span>
-          </div>
+          {csvUrl && (
+            <button
+              onClick={handleDownloadCSV}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                background: '#10b981',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#059669';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#10b981';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <span>📥</span>
+              Download CSV
+            </button>
+          )}
         </div>
       )}
 

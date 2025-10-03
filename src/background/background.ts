@@ -56,17 +56,55 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
-  // Handle product scraping messages
-  if (msg.type === 'PRODUCTS_EXTRACTED') {
-    console.log('Products extracted from content script:', msg.data);
-    // Store the products or send them to a server
-    // For now, just log them
-    return true;
-  }
-
   if (msg.type === 'SCRAPE_REQUESTED') {
-    console.log('Scrape requested from content script:', msg.data);
-    // Handle manual scrape request
+    console.log('Scrape requested:', msg.data);
+
+    // Send to backend server
+    const backendUrl = 'http://localhost:4000/scrape';
+
+    fetch(backendUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        urls: msg.data.urls,
+        width: 300,
+        height: 300
+      })
+    })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Backend response:', data);
+
+        // Send CSV path back to content script
+        if (data.success && data.csv) {
+          const csvUrl = `http://localhost:4000${data.csv}`;
+          chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+            if (tabs[0]?.id) {
+              chrome.tabs.sendMessage(tabs[0].id, {
+                type: 'SCRAPE_COMPLETE',
+                data: {
+                  csvUrl: csvUrl,
+                  count: data.count
+                }
+              });
+            }
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error sending to backend:', error);
+        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+          if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+              type: 'SCRAPE_ERROR',
+              error: error.message
+            });
+          }
+        });
+      });
+
     return true;
   }
 });

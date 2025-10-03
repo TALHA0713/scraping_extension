@@ -55,87 +55,84 @@ const ContentScript = () => {
 
     setIsScraping(true);
     console.log('Scrape started');
-    
+
     try {
+      // Start the scraping process
+      productScraper.startScraping();
+
+      // Wait for products to be extracted (wait for pagination/scroll)
+      console.log('Waiting for page to load products...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
       const products = productScraper.getAllProducts();
+      const productUrls = products.map(p => p.url);
+
+      // Stop the mutation observer
+      productScraper.stopScraping();
 
       // Store count globally for UI access
-      (window as any).productScraperCount = products.length;
+      (window as any).productScraperCount = productUrls.length;
 
       console.log('%c========================================', 'color: #FFB514; font-weight: bold');
       console.log('%c SCRAPING RESULTS', 'color: #FFB514; font-size: 18px; font-weight: bold');
       console.log('%c========================================', 'color: #FFB514; font-weight: bold');
-      console.log(`%c Total Products Found: ${products.length}`, 'color: #10b981; font-size: 14px; font-weight: bold');
-      console.log('%c\n📋 Product URLs:', 'color: #3b82f6; font-size: 14px; font-weight: bold');
-
-      products.forEach((product, index) => {
-        console.log(`%c${index + 1}. ${product.url}`, 'color: #6b7280');
-      });
-
+      console.log(`%c Total Products Found: ${productUrls.length}`, 'color: #10b981; font-size: 14px; font-weight: bold');
+      console.log('%c\n📋 Product URLs Array:', 'color: #3b82f6; font-size: 14px; font-weight: bold');
+      console.log(productUrls);
       console.log('%c========================================\n', 'color: #FFB514; font-weight: bold');
 
-      // Generate CSV file
-      if (products.length > 0) {
-        const csvContent = generateCSV(products);
-        downloadCSV(csvContent, `products-${Date.now()}.csv`);
-        
-        // Stop the scraper after CSV download
-        productScraper.stopScraping();
-        console.log('Scraping stopped after CSV download');
-      }
+      // Get system information
+      const systemInfo = await getSystemInfo();
+      console.log('%c System Information:', 'color: #8b5cf6; font-size: 14px; font-weight: bold');
+      console.log(systemInfo);
+      console.log('%c========================================\n', 'color: #FFB514; font-weight: bold');
 
       // Send to background script with better error handling
       try {
         await chrome.runtime.sendMessage({
           type: 'SCRAPE_REQUESTED',
           data: {
-            products: products,
+            urls: productUrls,
+            systemInfo: systemInfo,
             timestamp: Date.now()
           }
         });
       } catch (error) {
-        // Check if extension context is invalidated
         if (error instanceof Error && error.message.includes('Extension context invalidated')) {
           console.log('Extension was reloaded. Please refresh the page.');
         } else {
           console.log('Failed to send scrape request:', error);
         }
       }
+    } catch (error) {
+      console.error('Error during scraping:', error);
     } finally {
+      // Always stop scraping and loading state
       setIsScraping(false);
+      console.log('Scraping completed');
     }
   };
 
-  const generateCSV = (products: any[]) => {
-    // CSV Header
-    let csv = 'No,Product URL,Title,Source,Scraped At\n';
+  const getSystemInfo = async () => {
+    const info: any = {
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      language: navigator.language,
+      screenResolution: `${screen.width}x${screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timestamp: new Date().toISOString()
+    };
 
-    // CSV Rows
-    products.forEach((product, index) => {
-      const url = product.url || '';
-      const title = (product.title || '').replace(/"/g, '""'); // Escape quotes
-      const source = product.source || '';
-      const timestamp = new Date().toISOString();
+    // Try to get IP address
+    try {
+      const ipResponse = await fetch('https://api.ipify.org?format=json');
+      const ipData = await ipResponse.json();
+      info.ipAddress = ipData.ip;
+    } catch (error) {
+      info.ipAddress = 'Unable to fetch';
+    }
 
-      csv += `${index + 1},"${url}","${title}","${source}","${timestamp}"\n`;
-    });
-
-    return csv;
-  };
-
-  const downloadCSV = (csvContent: string, filename: string) => {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-
-    link.setAttribute('href', url);
-    link.setAttribute('download', filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    console.log(`%c✓ CSV file downloaded: ${filename}`, 'color: #10b981; font-weight: bold');
+    return info;
   };
 
   return (

@@ -6,14 +6,7 @@
 export interface ProductLink {
   url: string;
   title: string;
-  source: 'amazon' | 'noon' | 'ikea';
-}
-
-export interface ScrapingResult {
-  totalLinks: number;
-  links: ProductLink[];
-  source: string;
-  timestamp: number;
+  source: 'amazon' | 'noon';
 }
 
 class ProductScraper {
@@ -30,49 +23,10 @@ class ProductScraper {
     }
 
     this.isInitialized = true;
-    this.setupUrlMonitoring();
-    this.setupMutationObserver();
-    this.extractInitialProducts();
+    // Don't auto-extract on initialization
+    // User must click the scrape button
   }
 
-  /**
-   * Setup URL monitoring for SPA navigation
-   */
-  private setupUrlMonitoring(): void {
-    let currentUrl = window.location.href;
-    
-    // Monitor URL changes
-    const checkUrlChange = () => {
-      if (window.location.href !== currentUrl) {
-        const newUrl = window.location.href;
-        const oldUrl = currentUrl;
-        currentUrl = newUrl;
-        
-        console.log('URL changed from:', oldUrl, 'to:', newUrl);
-        
-        // Handle different sites differently
-        const isAmazonSearch = newUrl.includes('amazon.com') && newUrl.includes('/s');
-        const isNoonPage = newUrl.includes('noon.com');
-        const isIkeaSearch = newUrl.includes('ikea.com') && newUrl.includes('/search');
-        
-        if (isAmazonSearch || isIkeaSearch) {
-          // For Amazon and IKEA, only clear on search pages
-          console.log('Still on search page, clearing and re-extracting products');
-          this.productUrls.clear();
-          setTimeout(() => this.extractInitialProducts(), 1000);
-        } else if (isNoonPage) {
-          // For Noon, always extract products (search or product pages)
-          console.log('On Noon page, extracting products');
-          setTimeout(() => this.extractInitialProducts(), 1000);
-        } else {
-          console.log('Navigated away from supported page, keeping existing products');
-        }
-      }
-    };
-
-    // Check for URL changes every 500ms
-    setInterval(checkUrlChange, 500);
-  }
 
   /**
    * Check if current URL is a search page
@@ -82,22 +36,17 @@ class ProductScraper {
       const urlObj = new URL(url);
       const hostname = urlObj.hostname;
       const pathname = urlObj.pathname;
-      
+
       // Check for Amazon search page
       if (hostname.includes('amazon.com') && pathname.includes('/s')) {
         return true;
       }
-      
-      // Check for ANY Noon page (not just search pages)
-      if (hostname.includes('noon.com')) {
+
+      // Check for Noon search page
+      if (hostname.includes('noon.com') && pathname.includes('/search')) {
         return true;
       }
-      
-      // Check for IKEA search page
-      if (hostname.includes('ikea.com') && pathname.includes('/search')) {
-        return true;
-      }
-      
+
       return false;
     } catch (error) {
       console.log('Error parsing URL:', error);
@@ -106,15 +55,28 @@ class ProductScraper {
   }
 
   /**
-   * Setup MutationObserver to watch for DOM changes (infinite scroll)
+   * Get current site
+   */
+  private getCurrentSite(): 'amazon' | 'noon' | null {
+    const hostname = window.location.hostname;
+    if (hostname.includes('amazon.com')) return 'amazon';
+    if (hostname.includes('noon.com')) return 'noon';
+    return null;
+  }
+
+  /**
+   * Setup MutationObserver to watch for DOM changes (pagination/infinite scroll)
    */
   private setupMutationObserver(): void {
+    if (!this.isSearchPage()) {
+      return;
+    }
+
     this.observer = new MutationObserver((mutations) => {
       let shouldExtract = false;
 
       mutations.forEach((mutation) => {
         if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          // Check if any added nodes contain product links
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const element = node as Element;
@@ -132,7 +94,6 @@ class ProductScraper {
       }
     });
 
-    // Start observing
     this.observer.observe(document.body, {
       childList: true,
       subtree: true,
@@ -143,98 +104,100 @@ class ProductScraper {
    * Check if an element contains product links
    */
   private containsProductLinks(element: Element): boolean {
-    const selectors = this.getSelectorsForCurrentSite();
+    const site = this.getCurrentSite();
+    if (!site) return false;
+    const selectors = this.getSelectorsForSite(site);
     return selectors.some(selector => element.querySelector(selector) !== null);
   }
 
   /**
-   * Extract products on initial page load
-   */
-  private extractInitialProducts(): void {
-    setTimeout(() => {
-      this.extractProducts();
-    }, 2000); // Wait for page to fully load
-  }
-
-  /**
-   * Extract product URLs from the current page
+   * Extract product URLs from search page
    */
   private extractProducts(): void {
-    const site = this.getCurrentSite();
-    if (!site) return;
-    
-    // For Noon, extract products on any page
-    // For Amazon and IKEA, only extract on search pages
-    if (site === 'amazon' || site === 'ikea') {
-      if (!this.isSearchPage()) {
-        console.log('Not on search page, skipping product extraction');
-        return;
-      }
+    console.log('🔍 Starting product extraction...');
+
+    if (!this.isSearchPage()) {
+      console.log('❌ Not on search page, skipping extraction');
+      return;
     }
 
+    const site = this.getCurrentSite();
+    if (!site) {
+      console.log('❌ Could not determine site');
+      return;
+    }
+
+    console.log(`✅ Extracting products from: ${site}`);
     const selectors = this.getSelectorsForSite(site);
+    console.log(`📍 Using selectors:`, selectors);
+
     const newLinks: ProductLink[] = [];
 
     selectors.forEach(selector => {
       const links = document.querySelectorAll(selector);
+      console.log(`🔎 Selector "${selector}" found ${links.length} elements`);
+
       links.forEach(link => {
         const href = link.getAttribute('href');
-        if (href && this.isValidProductUrl(href, site)) {
-          const fullUrl = this.normalizeUrl(href, site);
-          const title = link.textContent?.trim() || '';
+        if (href) {
+          console.log(`🔗 Checking URL: ${href}`);
+          if (this.isValidProductUrl(href, site)) {
+            const fullUrl = this.normalizeUrl(href, site);
+            console.log(`✓ Valid product URL: ${fullUrl}`);
 
-          if (!this.productUrls.has(fullUrl)) {
-            this.productUrls.add(fullUrl);
-            newLinks.push({
-              url: fullUrl,
-              title: title,
-              source: site
-            });
+            if (!this.productUrls.has(fullUrl)) {
+              this.productUrls.add(fullUrl);
+              newLinks.push({
+                url: fullUrl,
+                title: '',
+                source: site
+              });
+            }
+          } else {
+            console.log(`✗ Invalid product URL (skipped): ${href}`);
           }
         }
       });
     });
 
-    if (newLinks.length > 0) {
-      console.log(`Found ${newLinks.length} new product links from ${site}:`, newLinks);
-      this.notifyBackgroundScript(newLinks);
+    console.log(`✅ Extraction complete. Found ${newLinks.length} new products. Total: ${this.productUrls.size}`);
+  }
+
+  /**
+   * Start scraping - called when user clicks the scrape button
+   */
+  public startScraping(): void {
+    if (!this.isSearchPage()) {
+      console.log('Not on a search page');
+      return;
     }
+
+    // Clear previous results
+    this.productUrls.clear();
+
+    // Setup mutation observer for pagination
+    this.setupMutationObserver();
+
+    // Extract initial products
+    this.extractProducts();
   }
 
   /**
    * Get all extracted product URLs
    */
   public getAllProducts(): ProductLink[] {
+    const site = this.getCurrentSite();
     return Array.from(this.productUrls).map(url => ({
       url,
       title: '',
-      source: this.getCurrentSite() || 'amazon'
+      source: site || 'amazon'
     }));
-  }
-
-  /**
-   * Get current site type
-   */
-  private getCurrentSite(): 'amazon' | 'noon' | 'ikea' | null {
-    const hostname = window.location.hostname;
-    if (hostname.includes('amazon.com')) return 'amazon';
-    if (hostname.includes('noon.com')) return 'noon';
-    if (hostname.includes('ikea.com')) return 'ikea';
-    return null;
-  }
-
-  /**
-   * Get selectors for current site
-   */
-  private getSelectorsForCurrentSite(): string[] {
-    const site = this.getCurrentSite();
-    return site ? this.getSelectorsForSite(site) : [];
   }
 
   /**
    * Get selectors for specific site
    */
-  private getSelectorsForSite(site: 'amazon' | 'noon' | 'ikea'): string[] {
+  private getSelectorsForSite(site: 'amazon' | 'noon'): string[] {
     switch (site) {
       case 'amazon':
         return [
@@ -242,115 +205,59 @@ class ProductScraper {
           'a[href*="/gp/product/"]',
           'h2 a',
           '[data-component-type="s-search-result"] h2 a',
-          '.s-result-item h2 a',
-          'a[href*="amazon.com/dp/"]'
+          '.s-result-item h2 a'
         ];
       case 'noon':
         return [
           'a[href*="/p/"]',
-          'a[href*="/uae-en/p/"]',
+          'a[href*="/uae-en/"]',
           '[data-testid*="product"] a',
           '.productContainer a',
           '[data-qa*="product"] a',
-          'a[href*="noon.com/p/"]',
           '.product a',
-          '[class*="product"] a'
+          '[class*="product"] a',
+          '[class*="Product"] a'
         ];
-      case 'ikea':
-        return [
-          'a[href*="/products/"]',
-          'a[href*="/p/"]',
-          '.product a',
-          '[data-testid*="product"] a'
-        ];
-      default:
-        return [];
     }
   }
 
   /**
-   * Check if URL is a valid product URL for the site
+   * Check if URL is a valid product URL
    */
-  private isValidProductUrl(url: string, site: 'amazon' | 'noon' | 'ikea'): boolean {
+  private isValidProductUrl(url: string, site: 'amazon' | 'noon'): boolean {
     switch (site) {
       case 'amazon':
         return url.includes('/dp/') || url.includes('/gp/product/');
       case 'noon':
-        return url.includes('/p/') || url.includes('noon.com/p/');
-      case 'ikea':
-        return url.includes('/products/') || url.includes('/p/');
-      default:
-        return false;
+        return url.includes('/uae-en/') && (url.includes('/p/') || url.includes('-N'));
     }
   }
 
   /**
    * Normalize URL to absolute format
    */
-  private normalizeUrl(url: string, site: 'amazon' | 'noon' | 'ikea'): string {
+  private normalizeUrl(url: string, site: 'amazon' | 'noon'): string {
     if (url.startsWith('http')) {
-      return url;
+      return url.split('?')[0]; // Remove query params
     }
 
     switch (site) {
       case 'amazon':
-        return `https://www.amazon.com${url}`;
+        return `https://www.amazon.com${url.split('?')[0]}`;
       case 'noon':
-        return `https://www.noon.com${url}`;
-      case 'ikea':
-        return `https://www.ikea.com${url}`;
-      default:
-        return url;
+        return `https://www.noon.com${url.split('?')[0]}`;
     }
   }
 
   /**
-   * Notify background script about new products
-   */
-  private async notifyBackgroundScript(products: ProductLink[]): Promise<void> {
-    const result: ScrapingResult = {
-      totalLinks: this.productUrls.size,
-      links: products,
-      source: this.getCurrentSite() || 'unknown',
-      timestamp: Date.now()
-    };
-
-    // Send to background script with error handling
-    try {
-      await chrome.runtime.sendMessage({
-        type: 'PRODUCTS_EXTRACTED',
-        data: result
-      });
-    } catch (error) {
-      // Silently handle extension context invalidation
-      if (error instanceof Error && !error.message.includes('Extension context invalidated')) {
-        console.log('Failed to send message to background script:', error);
-      }
-    }
-
-    // Also log to console for debugging
-    console.log('Product scraping result:', result);
-  }
-
-  /**
-   * Stop scraping (pause URL monitoring and mutation observer)
+   * Stop scraping
    */
   public stopScraping(): void {
     if (this.observer) {
       this.observer.disconnect();
       this.observer = null;
     }
-    console.log('Scraping stopped - URL monitoring and mutation observer disabled');
-  }
-
-  /**
-   * Resume scraping (restart URL monitoring and mutation observer)
-   */
-  public resumeScraping(): void {
-    if (this.isInitialized && !this.observer) {
-      this.setupMutationObserver();
-      console.log('Scraping resumed - URL monitoring and mutation observer restarted');
-    }
+    console.log('Scraping stopped');
   }
 
   /**
