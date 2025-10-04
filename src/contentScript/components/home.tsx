@@ -13,14 +13,17 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
   const [scrapingComplete, setScrapingComplete] = useState<boolean>(false);
   const [scrapedCount, setScrapedCount] = useState<number>(0);
   const [showResults, setShowResults] = useState<boolean>(false);
-  const [csvUrl, setCsvUrl] = useState<string>('');
+  const [excelUrl, setExcelUrl] = useState<string>('');
 
 
   useEffect(() => {
     // Listen for messages from background script
     const messageListener = (message: any) => {
+      console.log('Home component received message:', message);
+
       if (message.type === 'SCRAPE_COMPLETE') {
-        setCsvUrl(message.data.csvUrl);
+        console.log('Processing SCRAPE_COMPLETE:', message.data);
+        setExcelUrl(message.data.excelUrl);
         setScrapedCount(message.data.count);
         setIsLoading(false);
         setScrapingComplete(true);
@@ -53,7 +56,7 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
     setIsLoading(true);
     setScrapingComplete(false);
     setShowResults(false);
-    setCsvUrl('');
+    setExcelUrl('');
 
     try {
       // Call the scrape function
@@ -66,10 +69,10 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
     }
   };
 
-  const handleDownloadCSV = () => {
-    if (csvUrl) {
-      // Open the CSV URL in a new tab to download
-      window.open(csvUrl, '_blank');
+  const handleDownloadExcel = () => {
+    if (excelUrl) {
+      // Open the Excel URL in a new tab to download
+      window.open(excelUrl, '_blank');
     }
   };
 
@@ -296,9 +299,9 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
           }}>
             Products scraped successfully
           </div>
-          {csvUrl && (
+          {excelUrl && (
             <button
-              onClick={handleDownloadCSV}
+              onClick={handleDownloadExcel}
               style={{
                 width: '100%',
                 padding: '10px 16px',
@@ -325,7 +328,7 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
               }}
             >
               <span>📥</span>
-              Download CSV
+              Download Excel
             </button>
           )}
         </div>

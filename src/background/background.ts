@@ -76,21 +76,37 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .then(response => response.json())
       .then(data => {
         console.log('Backend response:', data);
+        console.log('data.excel:', data.excel);
+        console.log('data.success:', data.success);
 
-        // Send CSV path back to content script
-        if (data.success && data.csv) {
-          const csvUrl = `http://localhost:4000${data.csv}`;
+        // Send Excel path back to content script
+        if (data.success && data.excel) {
+          const excelUrl = `http://localhost:4000${data.excel}`;
+          console.log('Sending SCRAPE_COMPLETE with excelUrl:', excelUrl);
+
           chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+            console.log('Active tabs:', tabs);
             if (tabs[0]?.id) {
+              console.log('Sending message to tab:', tabs[0].id);
               chrome.tabs.sendMessage(tabs[0].id, {
                 type: 'SCRAPE_COMPLETE',
                 data: {
-                  csvUrl: csvUrl,
+                  excelUrl: excelUrl,
                   count: data.count
                 }
+              }, (response) => {
+                if (chrome.runtime.lastError) {
+                  console.error('Error sending message:', chrome.runtime.lastError);
+                } else {
+                  console.log('Message sent successfully');
+                }
               });
+            } else {
+              console.error('No active tab found!');
             }
           });
+        } else {
+          console.error('Backend response missing success or excel:', data);
         }
       })
       .catch(error => {
