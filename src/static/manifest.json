@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "scraping",
   "description": "browser extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "action": {
     "default_title": "Browser Extension",
     "default_icon": "icon.png"
@@ -23,7 +23,7 @@
         "*://www.noon.com/uae-en/search*"
       ],
       "js": ["contentScript.js"],
-      "run_at": "document_end"
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [

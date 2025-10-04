@@ -58,6 +58,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
   if (msg.type === 'SCRAPE_REQUESTED') {
     console.log('Scrape requested:', msg.data);
+    console.log('Sender tab ID:', sender.tab?.id);
+
+    // Get the tab ID from sender (more reliable than querying)
+    const tabId = sender.tab?.id;
+    if (!tabId) {
+      console.error('No tab ID from sender!');
+      return true;
+    }
 
     // Send to backend server
     const backendUrl = 'http://localhost:4000/scrape';
@@ -83,41 +91,35 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (data.success && data.excel) {
           const excelUrl = `http://localhost:4000${data.excel}`;
           console.log('Sending SCRAPE_COMPLETE with excelUrl:', excelUrl);
+          console.log('Sending to tab ID:', tabId);
 
-          chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-            console.log('Active tabs:', tabs);
-            if (tabs[0]?.id) {
-              console.log('Sending message to tab:', tabs[0].id);
-              chrome.tabs.sendMessage(tabs[0].id, {
-                type: 'SCRAPE_COMPLETE',
-                data: {
-                  excelUrl: excelUrl,
-                  count: data.count
-                }
-              }, (response) => {
-                if (chrome.runtime.lastError) {
-                  console.error('Error sending message:', chrome.runtime.lastError);
-                } else {
-                  console.log('Message sent successfully');
-                }
-              });
+          chrome.tabs.sendMessage(tabId, {
+            type: 'SCRAPE_COMPLETE',
+            data: {
+              excelUrl: excelUrl,
+              count: data.count
+            }
+          }, (response) => {
+            if (chrome.runtime.lastError) {
+              console.error('Error sending message:', chrome.runtime.lastError);
             } else {
-              console.error('No active tab found!');
+              console.log('Message sent successfully to tab', tabId);
             }
           });
         } else {
           console.error('Backend response missing success or excel:', data);
+          // Send error back
+          chrome.tabs.sendMessage(tabId, {
+            type: 'SCRAPE_ERROR',
+            error: 'Invalid backend response'
+          });
         }
       })
       .catch(error => {
         console.error('Error sending to backend:', error);
-        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
-          if (tabs[0]?.id) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-              type: 'SCRAPE_ERROR',
-              error: error.message
-            });
-          }
+        chrome.tabs.sendMessage(tabId, {
+          type: 'SCRAPE_ERROR',
+          error: error.message
         });
       });
 
