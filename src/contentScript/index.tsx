@@ -5,20 +5,16 @@ import ContentScript from './contentScript';
 function checkIfSupportedPage() {
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
-  const search = window.location.search;
 
-  // Check for Amazon search page
   if (hostname.includes('amazon.com') && pathname.includes('/s')) {
     return true;
   }
 
-  // Check for ANY Noon page (not just search pages)
   if (hostname.includes('noon.com')) {
     return true;
   }
 
-  // Check for IKEA search page
-  if (hostname.includes('ikea.com') && pathname.includes('/search')) {
+  if (hostname.includes('ikea.') && pathname.includes('/search')) {
     return true;
   }
 
@@ -30,7 +26,7 @@ let currentUrl = window.location.href;
 
 async function init() {
   console.log('Content script loaded on:', window.location.href);
-  
+
   if (!checkIfSupportedPage()) {
     console.log('Not on a supported page, extension will not load');
     return; // Don't initialize extension on non-supported domains
@@ -39,6 +35,12 @@ async function init() {
   console.log('Extension initializing on:', window.location.href);
 
   try {
+    if (!document.body) {
+      console.log('Document body not ready, waiting...');
+      setTimeout(init, 500);
+      return;
+    }
+
     const response = await fetch(chrome.runtime.getURL('index.css'));
     if (!response.ok) {
       throw new Error(`Network response was not ok: ${response.statusText}`);
@@ -46,14 +48,18 @@ async function init() {
     const textContent = await response.text();
 
     const existingElement = document.getElementById('extension-shadow-root');
-
     if (existingElement) {
       existingElement.remove();
     }
 
     const container = document.createElement('div');
     container.id = 'extension-shadow-root';
-    document.body.insertBefore(container, document.body.firstChild);
+
+    if (document.body.firstChild && document.body.contains(document.body.firstChild)) {
+      document.body.insertBefore(container, document.body.firstChild);
+    } else {
+      document.body.appendChild(container);
+    }
 
     const shadowContainer = container.attachShadow({ mode: 'open' });
     const shadowRootElement = document.createElement('div');
@@ -71,34 +77,33 @@ async function init() {
         <ContentScript />
       </React.StrictMode>,
     );
-    
+
     isExtensionLoaded = true;
+    console.log('Extension loaded successfully');
   } catch (error) {
-    console.log('Failed to fetch and apply CSS:', error);
+    console.error('Failed to initialize extension:', error);
+    isExtensionLoaded = false;
   }
 }
 
-// Monitor URL changes to reinitialize extension on supported pages
 function monitorUrlChanges() {
   setInterval(() => {
     if (window.location.href !== currentUrl) {
       const newUrl = window.location.href;
       const oldUrl = currentUrl;
       currentUrl = newUrl;
-      
+
       console.log('URL changed from:', oldUrl, 'to:', newUrl);
-      
-      // Check if new URL is supported
+
       if (checkIfSupportedPage()) {
         if (!isExtensionLoaded) {
           console.log('Navigated to supported page, waiting for DOM and initializing extension');
-          // Wait for DOM to be ready before initializing
           if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
-              setTimeout(init, 1500); // Wait for page to fully load
+              setTimeout(init, 1500);
             });
           } else {
-            setTimeout(init, 1500); // Wait for page to fully load
+            setTimeout(init, 1500);
           }
         }
       } else {
@@ -112,19 +117,17 @@ function monitorUrlChanges() {
         }
       }
     }
-  }, 1000); // Increased interval to 1 second
+  }, 1000);
 }
 
-// Wait for DOM to be ready before initializing
 function waitForDOM() {
   function initializeWhenReady() {
-    // Check if page is fully loaded
     if (document.readyState === 'complete') {
       console.log('Page fully loaded, initializing extension');
-      setTimeout(init, 2000); // Wait 2 seconds for page to stabilize
+      setTimeout(init, 2000);
     } else {
       console.log('Page still loading, waiting...');
-      setTimeout(initializeWhenReady, 500); // Check again in 500ms
+      setTimeout(initializeWhenReady, 500);
     }
   }
 
@@ -140,8 +143,5 @@ function waitForDOM() {
   }
 }
 
-// Initialize when DOM is ready
 waitForDOM();
-
-// Start monitoring URL changes
 monitorUrlChanges();

@@ -6,7 +6,7 @@
 export interface ProductLink {
   url: string;
   title: string;
-  source: 'amazon' | 'noon';
+  source: 'amazon' | 'noon' | 'ikea';
 }
 
 class ProductScraper {
@@ -47,6 +47,11 @@ class ProductScraper {
         return true;
       }
 
+      // Check for IKEA search page
+      if (hostname.includes('ikea.') && pathname.includes('/search')) {
+        return true;
+      }
+
       return false;
     } catch (error) {
       console.log('Error parsing URL:', error);
@@ -57,10 +62,11 @@ class ProductScraper {
   /**
    * Get current site
    */
-  private getCurrentSite(): 'amazon' | 'noon' | null {
+  private getCurrentSite(): 'amazon' | 'noon' | 'ikea' | null {
     const hostname = window.location.hostname;
     if (hostname.includes('amazon.com')) return 'amazon';
     if (hostname.includes('noon.com')) return 'noon';
+    if (hostname.includes('ikea.')) return 'ikea';
     return null;
   }
 
@@ -138,7 +144,18 @@ class ProductScraper {
       console.log(`🔎 Selector "${selector}" found ${links.length} elements`);
 
       links.forEach(link => {
-        const href = link.getAttribute('href');
+        let href = link.getAttribute('href');
+
+        // Special handling for IKEA: ensure we get the complete href
+        if (site === 'ikea' && href) {
+          // Try to get the absolute URL from the anchor element
+          const anchorElement = link as HTMLAnchorElement;
+          if (anchorElement.href) {
+            // Use the browser's computed absolute href which should be complete
+            href = anchorElement.href.replace(window.location.origin, '');
+          }
+        }
+
         if (href) {
           console.log(`🔗 Checking URL: ${href}`);
           if (this.isValidProductUrl(href, site)) {
@@ -197,7 +214,7 @@ class ProductScraper {
   /**
    * Get selectors for specific site
    */
-  private getSelectorsForSite(site: 'amazon' | 'noon'): string[] {
+  private getSelectorsForSite(site: 'amazon' | 'noon' | 'ikea'): string[] {
     switch (site) {
       case 'amazon':
         return [
@@ -218,34 +235,48 @@ class ProductScraper {
           '[class*="product"] a',
           '[class*="Product"] a'
         ];
+      case 'ikea':
+        return [
+          // Product card header link (image area)
+          'a.card-header_link',
+          // Product name link (title area)
+          'a.itemName-link',
+          // Fallback: any anchor with /pd/ in href (product detail pages)
+          'a[href*="/pd/"]',
+        ];
     }
   }
 
   /**
    * Check if URL is a valid product URL
    */
-  private isValidProductUrl(url: string, site: 'amazon' | 'noon'): boolean {
+  private isValidProductUrl(url: string, site: 'amazon' | 'noon' | 'ikea'): boolean {
     switch (site) {
       case 'amazon':
         return url.includes('/dp/') || url.includes('/gp/product/');
       case 'noon':
         return url.includes('/uae-en/') && (url.includes('/p/') || url.includes('-N'));
+      case 'ikea':
+        // IKEA product URLs contain /pd/ (product detail) with format: /pd/{product-name}-art-{article-number}
+        return url.includes('/pd/');
     }
   }
 
   /**
    * Normalize URL to absolute format
    */
-  private normalizeUrl(url: string, site: 'amazon' | 'noon'): string {
+  private normalizeUrl(url: string, site: 'amazon' | 'noon' | 'ikea'): string {
     if (url.startsWith('http')) {
       return url.split('?')[0]; // Remove query params
     }
-
     switch (site) {
       case 'amazon':
         return `https://www.amazon.com${url.split('?')[0]}`;
       case 'noon':
         return `https://www.noon.com${url.split('?')[0]}`;
+      case 'ikea':
+        // Use the current domain for IKEA (to support .pr, .eg, etc.)
+        return `${window.location.origin}${url.split('?')[0]}`;
     }
   }
 

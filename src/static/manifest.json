@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "scraping",
   "description": "browser extension",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "action": {
     "default_title": "Browser Extension",
     "default_icon": "icon.png"
@@ -20,7 +20,13 @@
     {
       "matches": [
         "*://www.amazon.com/s*",
-        "*://www.noon.com/uae-en/search*"
+        "*://www.noon.com/uae-en/search*",
+        "*://*.ikea.com/*/search*",
+        "*://*.ikea.pr/*/search*",
+        "*://*.ikea.fr/*/search*",
+        "*://*.ikea.de/*/search*",
+        "*://*.ikea.ae/*/search*",
+        "*://*.ikea.sa/*/search*"
       ],
       "js": ["contentScript.js"],
       "run_at": "document_idle"
@@ -35,6 +41,12 @@
   "host_permissions": [
     "https://www.amazon.com/*",
     "https://www.noon.com/*",
+    "https://*.ikea.com/*",
+    "https://*.ikea.pr/*",
+    "https://*.ikea.fr/*",
+    "https://*.ikea.de/*",
+    "https://*.ikea.ae/*",
+    "https://*.ikea.sa/*",
     "https://api.ipify.org/*",
     "http://localhost:4000/*"
   ]
