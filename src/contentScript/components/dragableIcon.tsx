@@ -11,7 +11,7 @@ interface DragableIconProps {
 const DragableIcon = (props: DragableIconProps) => {
   const { position, handleDrag, handleOpen } = props;
   const draggableRef = useRef<HTMLDivElement>(null);
-  const defaultIcon = chrome.runtime.getURL('icon.png');
+  const defaultIcon = chrome.runtime.getURL('images.png');
   const [iconSrc, setIconSrc] = useState<string>(defaultIcon);
 
   return (

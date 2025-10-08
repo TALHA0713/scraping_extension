@@ -204,11 +204,110 @@ class ProductScraper {
    */
   public getAllProducts(): ProductLink[] {
     const site = this.getCurrentSite();
-    return Array.from(this.productUrls).map(url => ({
+    const allUrls = Array.from(this.productUrls).map(url => ({
       url,
       title: '',
       source: site || 'amazon'
     }));
+
+    // Apply filtering only for Amazon and only if we have more than 70 URLs
+    if (site === 'amazon' && allUrls.length > 70) {
+      console.log(`🔍 Filtering ${allUrls.length} URLs for Amazon (more than 70 detected)`);
+      return this.filterUrlsByProduct(allUrls, site);
+    }
+
+    return allUrls;
+  }
+
+  
+/**
+ * Filter URLs by product to limit to 2-3 URLs per product (Amazon only)
+ * If still >70, further reduce to 1 URL per product
+ */
+private filterUrlsByProduct(urls: ProductLink[], site: 'amazon'): ProductLink[] {
+  const productGroups = new Map<string, ProductLink[]>();
+
+  // Group URLs by product key
+  urls.forEach(product => {
+    const productKey = this.extractAmazonProductKey(product.url);
+    if (!productGroups.has(productKey)) {
+      productGroups.set(productKey, []);
+    }
+    productGroups.get(productKey)!.push(product);
+  });
+
+  console.log(`📊 Grouped ${urls.length} URLs into ${productGroups.size} products`);
+
+  let filteredUrls: ProductLink[] = [];
+
+  // Phase 1: keep up to 3 URLs per product
+  productGroups.forEach((productUrls, productKey) => {
+    const sortedUrls = this.prioritizeAmazonUrls(productUrls);
+    const selectedUrls = sortedUrls.slice(0, 3);
+    filteredUrls.push(...selectedUrls);
+  });
+
+  console.log(`🎯 Phase 1 done: reduced to ${filteredUrls.length} URLs`);
+
+  // Phase 2: if still more than 70, keep only 1 URL per product
+  if (filteredUrls.length > 70) {
+    console.log(`⚙️ Still more than 70 URLs (${filteredUrls.length}), reducing to 1 per product...`);
+    const onePerProduct: ProductLink[] = [];
+    productGroups.forEach((productUrls, productKey) => {
+      const sortedUrls = this.prioritizeAmazonUrls(productUrls);
+      if (sortedUrls.length > 0) {
+        onePerProduct.push(sortedUrls[0]);
+      }
+    });
+    filteredUrls = onePerProduct;
+    console.log(`✅ Phase 2 done: reduced to ${filteredUrls.length} URLs (1 per product)`);
+  }
+
+  console.log(`🏁 Final URL count: ${filteredUrls.length}`);
+  return filteredUrls;
+}
+
+  /**
+   * Extract Amazon product key from URL for grouping
+   */
+  private extractAmazonProductKey(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      
+      // Extract product name from pathname
+      // Example: /Smartphone-Unlocked-Processor-Manufacturer-Warranty/dp/B0DP3G4GVQ/
+      const amazonPath = urlObj.pathname;
+      const amazonMatch = amazonPath.match(/^\/([^\/]+)\/dp\//);
+      if (amazonMatch) {
+        return amazonMatch[1];
+      }
+      
+      // Fallback: use the full pathname as key
+      return urlObj.pathname;
+    } catch (error) {
+      console.warn('Error extracting Amazon product key from URL:', url, error);
+      return url;
+    }
+  }
+
+  /**
+   * Prioritize Amazon URLs within a product group
+   */
+  private prioritizeAmazonUrls(urls: ProductLink[]): ProductLink[] {
+    return urls.sort((a, b) => {
+      const urlA = a.url.toLowerCase();
+      const urlB = b.url.toLowerCase();
+      
+      // Prioritize main product pages (without complex ref parameters)
+      const aHasSimpleRef = !urlA.includes('ref=') || urlA.includes('ref=sr_1_');
+      const bHasSimpleRef = !urlB.includes('ref=') || urlB.includes('ref=sr_1_');
+      
+      if (aHasSimpleRef && !bHasSimpleRef) return -1;
+      if (!aHasSimpleRef && bHasSimpleRef) return 1;
+      
+      // Then prioritize by shorter URLs (simpler variants)
+      return urlA.length - urlB.length;
+    });
   }
 
   /**
