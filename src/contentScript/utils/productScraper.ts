@@ -319,27 +319,28 @@ private filterUrlsByProduct(urls: ProductLink[], site: 'amazon'): ProductLink[] 
         return [
           'a[href*="/dp/"]',
           'a[href*="/gp/product/"]',
-          'h2 a',
-          '[data-component-type="s-search-result"] h2 a',
-          '.s-result-item h2 a'
+          // 'h2 a',
+          // '[data-component-type="s-search-result"] h2 a',
+          // '.s-result-item h2 a'
         ];
       case 'noon':
         return [
           'a[href*="/p/"]',
           'a[href*="/uae-en/"]',
-          '[data-testid*="product"] a',
-          '.productContainer a',
-          '[data-qa*="product"] a',
-          '.product a',
-          '[class*="product"] a',
-          '[class*="Product"] a'
+          // '[data-testid*="product"] a',
+          // '.productContainer a',
+          // '[data-qa*="product"] a',
+          // '.product a',
+          // '[class*="product"] a',
+          // '[class*="Product"] a'
         ];
       case 'ikea':
         return [
+          'a[href*="/p/"]',
           // Product card header link (image area)
-          'a.card-header_link',
+          // 'a.card-header_link',
           // Product name link (title area)
-          'a.itemName-link',
+          // 'a.itemName-link',
           // Fallback: any anchor with /pd/ in href (product detail pages)
           'a[href*="/pd/"]',
         ];
@@ -357,7 +358,7 @@ private filterUrlsByProduct(urls: ProductLink[], site: 'amazon'): ProductLink[] 
         return url.includes('/uae-en/') && (url.includes('/p/') || url.includes('-N'));
       case 'ikea':
         // IKEA product URLs contain /pd/ (product detail) with format: /pd/{product-name}-art-{article-number}
-        return url.includes('/pd/');
+        return url.includes('/p/') || url.includes('/pd/');
     }
   }
 

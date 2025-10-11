@@ -7,7 +7,6 @@ const ContentScript = () => {
   const [showPopup, setShowPopup] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [isScraping, setIsScraping] = useState(false);
 
   useEffect(() => {
     const storedPosition = localStorage.getItem('avatarPosition');
@@ -48,12 +47,6 @@ const ContentScript = () => {
   };
 
   const handleScrape = async () => {
-    if (isScraping) {
-      console.log('Scraping already in progress...');
-      return;
-    }
-
-    setIsScraping(true);
     console.log('Scrape started');
 
     try {
@@ -107,8 +100,6 @@ const ContentScript = () => {
     } catch (error) {
       console.error('Error during scraping:', error);
     } finally {
-      // Always stop scraping and loading state
-      setIsScraping(false);
       console.log('Scraping completed');
     }
   };

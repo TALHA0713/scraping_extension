@@ -14,9 +14,18 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
   const [scrapedCount, setScrapedCount] = useState<number>(0);
   const [showResults, setShowResults] = useState<boolean>(false);
   const [excelUrl, setExcelUrl] = useState<string>('');
+  const [downloadClicked, setDownloadClicked] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showError, setShowError] = useState<boolean>(false);
 
 
   useEffect(() => {
+    // Load persistent toggle state from sessionStorage
+    const savedToggleState = sessionStorage.getItem('scrapingToggleEnabled');
+    if (savedToggleState !== null) {
+      setIsScrapingEnabled(JSON.parse(savedToggleState));
+    }
+
     // Listen for messages from background script
     const messageListener = (message: any) => {
       console.log('Home component received message:', message);
@@ -36,7 +45,27 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
       } else if (message.type === 'SCRAPE_ERROR') {
         console.error('Scraping error:', message.error);
         setIsLoading(false);
-        alert('Error during scraping: ' + message.error);
+        setScrapingComplete(false);
+        setShowResults(false);
+        setErrorMessage(message.error || 'An error occurred during scraping');
+        setShowError(true);
+        // Hide error message after 5 seconds
+        setTimeout(() => {
+          setShowError(false);
+          setErrorMessage('');
+        }, 5000);
+      } else if (message.type === 'SCRAPE_PARALLEL_ERROR') {
+        console.error('Parallel scraping error:', message.error);
+        setIsLoading(false);
+        setScrapingComplete(false);
+        setShowResults(false);
+        setErrorMessage(message.error || 'Cannot scrape multiple sites simultaneously. Please wait for current scraping to complete or close the current tab.');
+        setShowError(true);
+        // Hide error message after 5 seconds
+        setTimeout(() => {
+          setShowError(false);
+          setErrorMessage('');
+        }, 5000);
       }
     };
 
@@ -48,8 +77,11 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
   }, []);
 
   const handleToggleScraping = () => {
-    setIsScrapingEnabled(!isScrapingEnabled);
+    const newState = !isScrapingEnabled;
+    setIsScrapingEnabled(newState);
     setScrapingComplete(false);
+    // Persist the toggle state in sessionStorage
+    sessionStorage.setItem('scrapingToggleEnabled', JSON.stringify(newState));
   };
 
   const handleStartScrape = async () => {
@@ -71,8 +103,19 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
 
   const handleDownloadExcel = () => {
     if (excelUrl) {
-      // Open the Excel URL in a new tab to download
-      window.open(excelUrl, '_blank');
+      // Create a hidden link with download attribute
+      const link = document.createElement('a');
+      link.href = excelUrl;
+      link.download = 'scraped-products.xlsx';
+      link.target = '_self'; // Use _self instead of _blank to avoid new tab
+      link.style.display = 'none';
+      
+      // Append to body, click, then remove immediately
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setDownloadClicked(true);
     }
   };
 
@@ -264,12 +307,30 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
           gap: '8px'
         }}>
           <span style={{ fontSize: '16px' }}>✓</span>
-          <span>Scraping completed! Found {scrapedCount} products</span>
+          <span>{errorMessage || `Scraping completed! Found ${scrapedCount} products`}</span>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {showError && errorMessage && (
+        <div style={{
+          background: '#fee2e2',
+          border: '1px solid #fca5a5',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          fontSize: '13px',
+          color: '#dc2626',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '16px' }}>⚠️</span>
+          <span>{errorMessage}</span>
         </div>
       )}
 
       {/* Results Section */}
-      {showResults && scrapedCount > 0 && (
+      {showResults && scrapedCount > 0 && !downloadClicked && (
         <div style={{
           background: '#f9fafb',
           border: '1px solid #e5e7eb',
@@ -326,6 +387,7 @@ const Home: React.FC<HomeProps> = ({ onClose, onScrape }) => {
                 e.currentTarget.style.background = '#10b981';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
+              title="Download Excel file"
             >
               <span>📥</span>
               Download Excel

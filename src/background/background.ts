@@ -81,7 +81,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         height: 300
       })
     })
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(errorData => {
+            throw { status: response.status, data: errorData };
+          });
+        }
+        return response.json();
+      })
       .then(data => {
         console.log('Backend response:', data);
         console.log('data.excel:', data.excel);
@@ -117,10 +124,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })
       .catch(error => {
         console.error('Error sending to backend:', error);
-        chrome.tabs.sendMessage(tabId, {
-          type: 'SCRAPE_ERROR',
-          error: error.message
-        });
+        
+        // Check if it's a parallel scraping error (409 status)
+        if (error.status === 409) {
+          chrome.tabs.sendMessage(tabId, {
+            type: 'SCRAPE_PARALLEL_ERROR',
+            error: error.data.error || 'Another scraping session is already active. Please wait for it to complete.'
+          });
+        } else {
+          chrome.tabs.sendMessage(tabId, {
+            type: 'SCRAPE_ERROR',
+            error: error.data?.error || error.message || 'An error occurred during scraping'
+          });
+        }
       });
 
     return true;
